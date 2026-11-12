@@ -156,6 +156,28 @@ function translateTypeReferenceAnnotation(
         translateTypeAnnotation,
       );
     }
+    case 'Record': {
+      const params = typeAnnotation.typeParameters?.params;
+      if (params?.length !== 2 || params[0].type !== 'TSStringKeyword') {
+        throw new UnsupportedGenericParserError(
+          hasteModuleName,
+          typeAnnotation,
+          parser,
+        );
+      }
+
+      const valueType = translateTypeAnnotation(
+        hasteModuleName,
+        params[1],
+        types,
+        aliasMap,
+        enumMap,
+        tryParse,
+        cxxOnly,
+        parser,
+      );
+      return emitDictionary(nullable, valueType);
+    }
     default: {
       const commonType = emitCommonTypes(
         hasteModuleName,

@@ -75,6 +75,49 @@ function expectAnimalTypeAliasToExist(module: NativeModuleSchema) {
 }
 
 describe('TypeScript Module Parser', () => {
+  describe('Record dictionaries', () => {
+    function parseDictionary(type: string) {
+      const module = parseModule(`
+        import type {TurboModule} from 'RCTExport';
+        import * as TurboModuleRegistry from 'TurboModuleRegistry';
+        export interface Spec extends TurboModule {
+          useArg(arg: ${type}): ${type};
+        }
+        export default TurboModuleRegistry.get<Spec>('Foo');
+      `);
+      const [functionType] = unwrapNullable(
+        module.spec.methods[0].typeAnnotation,
+      );
+      return {
+        parameter: unwrapNullable(functionType.params[0].typeAnnotation)[0],
+        returnType: unwrapNullable(functionType.returnTypeAnnotation)[0],
+      };
+    }
+
+    [
+      ['Record<string, string>', '{[key: string]: string}'],
+      ['Record<string, unknown>', '{[key: string]: unknown}'],
+      ['Readonly<Record<string, number>>', '{[key: string]: number}'],
+      ['Record<string, {id: string}>', '{[key: string]: {id: string}}'],
+    ].forEach(([recordType, indexSignature]) => {
+      it(`parses ${recordType} like an index signature`, () => {
+        const expected = parseDictionary(indexSignature);
+        expect(expected.parameter).toHaveProperty(
+          'type',
+          'GenericObjectTypeAnnotation',
+        );
+        expect(expected.parameter.dictionaryValueType).toBeDefined();
+        expect(parseDictionary(recordType)).toEqual(expected);
+      });
+    });
+
+    it('rejects Records with non-string keys', () => {
+      expect(() => parseDictionary('Record<number, string>')).toThrow(
+        UnsupportedGenericParserError,
+      );
+    });
+  });
+
   describe('Parameter Parsing', () => {
     it("should fail parsing when a method has an parameter of type 'any'", () => {
       const parser = () =>
