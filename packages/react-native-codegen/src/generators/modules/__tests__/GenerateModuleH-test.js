@@ -58,6 +58,23 @@ describe('GenerateModuleH', () => {
       });
     });
 
+  it('uses non-reserved C++ identifiers for method invokers', () => {
+    const files = generator.generate(
+      'cxx_only_native_modules',
+      fixtures.cxx_only_native_modules,
+    );
+    const header = files.get('cxx_only_native_modulesJSI.h');
+    const invokers = [...header.matchAll(/\.invoker = (\w+)/g)].map(
+      match => match[1],
+    );
+
+    expect(invokers.length).toBeGreaterThan(0);
+    invokers.forEach(invoker => {
+      expect(invoker).not.toMatch(/^__/);
+      expect(header).toContain(`static jsi::Value ${invoker}(`);
+    });
+  });
+
   it('throws for an EventEmitter with an ArrayBuffer payload', () => {
     expect(() =>
       generator.generate(
