@@ -46,8 +46,10 @@ abstract class PreparePrefabHeadersTask : DefaultTask() {
             .fileCollection()
             .from(
                 input.map { entries ->
-                  entries.flatMap { (_, pathToPrefixCouples) ->
-                    pathToPrefixCouples.map { (headerPath, _) -> headersUnder(headerPath) }
+                  entries.flatMap { entry ->
+                    entry.pathToPrefixCouples.map { (headerPath, prefix) ->
+                      headersUnder(headerPath, entry.excludesByPrefix[prefix].orEmpty())
+                    }
                   }
                 }
             )
@@ -58,20 +60,22 @@ abstract class PreparePrefabHeadersTask : DefaultTask() {
 
   @TaskAction
   fun taskAction() {
-    input.get().forEach { (libraryName, pathToPrefixCouples) ->
+    input.get().forEach { entry ->
+      val (libraryName, pathToPrefixCouples) = entry
       val outputFolder: RegularFile = outputDir.file(libraryName).get()
       fs.delete { deleteSpec -> deleteSpec.delete(outputFolder) }
       pathToPrefixCouples.forEach { (headerPath, headerPrefix) ->
         fs.copy { copySpec ->
-          copySpec.from(headersUnder(headerPath))
+          copySpec.from(headersUnder(headerPath, entry.excludesByPrefix[headerPrefix].orEmpty()))
           copySpec.into(File(outputFolder.asFile, headerPrefix))
         }
       }
     }
   }
 
-  private fun headersUnder(headerPath: String): FileTree =
+  private fun headersUnder(headerPath: String, excludes: List<String> = emptyList()): FileTree =
       objects.fileTree().from(headerPath).matching { patterns ->
+        patterns.exclude(excludes)
         patterns.include("**/*.h")
         patterns.exclude("**/*.cpp")
         patterns.exclude("**/*.txt")

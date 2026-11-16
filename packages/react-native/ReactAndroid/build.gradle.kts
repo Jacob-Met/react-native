@@ -324,7 +324,25 @@ val preparePrefab by
                   // hermes_executor
                   Pair("../ReactCommon/hermes/inspector-modern/", "hermes/inspector-modern/"),
               ),
-          ),
+          )
+              .flatMap { entry ->
+                if (entry.libraryName != "reactnative") {
+                  listOf(entry)
+                } else {
+                  // Case-insensitive file systems merge React/ with react/. Put umbrella
+                  // headers in their own Prefab include root and re-export it.
+                  val (umbrella, other) =
+                      entry.pathToPrefixCouples.partition { (_, prefix) -> prefix == "React/" }
+                  listOf(
+                      entry.copy(
+                          pathToPrefixCouples = other,
+                          // Unprefixed source trees also contain umbrella headers.
+                          excludesByPrefix = mapOf("" to listOf("React/**")),
+                      ),
+                      PrefabPreprocessingEntry("reactheaders", umbrella),
+                  )
+                }
+              },
       )
       outputDir.set(prefabHeadersDir)
     }
@@ -620,6 +638,9 @@ android {
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
     externalNativeBuild {
+      // Preserve <React/...> includes for existing reactnative consumers.
+      (this as com.android.build.gradle.internal.dsl.ExternalNativeBuildOptions)
+          .experimentalProperties["prefab.reactnative.exportLibraries"] = listOf(":reactheaders")
       cmake {
         arguments(
             "-DREACT_COMMON_DIR=${reactNativeRootDir}/ReactCommon",
@@ -634,6 +655,7 @@ android {
             "reactnative",
             "jsi",
             "hermestooling",
+            "reactheaders",
         )
       }
     }
@@ -704,6 +726,10 @@ android {
   prefab {
     create("jsi") { headers = File(prefabHeadersDir, "jsi").absolutePath }
     create("reactnative") { headers = File(prefabHeadersDir, "reactnative").absolutePath }
+    create("reactheaders") {
+      headers = File(prefabHeadersDir, "reactheaders").absolutePath
+      headerOnly = true
+    }
     create("hermestooling") { headers = File(prefabHeadersDir, "hermestooling").absolutePath }
   }
 

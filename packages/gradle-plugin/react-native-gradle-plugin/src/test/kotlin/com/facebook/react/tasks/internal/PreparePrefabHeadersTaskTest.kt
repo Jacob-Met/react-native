@@ -115,6 +115,39 @@ class PreparePrefabHeadersTaskTest {
   }
 
   @Test
+  fun preparePrefabHeadersTask_withExcludedHeaderPrefix_keepsOtherHeaders() {
+    val outputDir = tempFolder.newFolder("output")
+    File(tempFolder.root, "input/React/View.h").createNewPathAndFile()
+    val implementation =
+        File(tempFolder.root, "input/react/renderer/ViewProps.h").apply { createNewPathAndFile() }
+    val rootHeader =
+        File(tempFolder.root, "input/RuntimeExecutor.h").apply { createNewPathAndFile() }
+
+    val project = createProject(projectDir = tempFolder.root)
+    val task =
+        createTestTask<PreparePrefabHeadersTask>(project = project) {
+          it.outputDir.set(outputDir)
+          it.input.set(
+              listOf(
+                  PrefabPreprocessingEntry(
+                      "reactnative",
+                      listOf("input/" to ""),
+                      excludesByPrefix = mapOf("" to listOf("React/**")),
+                  ),
+                  PrefabPreprocessingEntry("reactheaders", "input/React/" to "React/"),
+              ),
+          )
+        }
+
+    assertThat(task.inputs.files.files).contains(implementation, rootHeader)
+    task.taskAction()
+    assertThat(File(outputDir, "reactnative/React")).doesNotExist()
+    assertThat(File(outputDir, "reactnative/react/renderer/ViewProps.h")).exists()
+    assertThat(File(outputDir, "reactnative/RuntimeExecutor.h")).exists()
+    assertThat(File(outputDir, "reactheaders/React/View.h")).exists()
+  }
+
+  @Test
   fun preparePrefabHeadersTask_withMultipleEntries_copiesHeaderFiles() {
     val outputDir = tempFolder.newFolder("output")
     File(tempFolder.root, "input/lib1/hello1.h").createNewPathAndFile()

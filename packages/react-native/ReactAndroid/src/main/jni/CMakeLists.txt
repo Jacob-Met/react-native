@@ -8,6 +8,12 @@ set(CMAKE_VERBOSE_MAKEFILE on)
 
 project(ReactAndroid)
 
+# AGP requires a buildable target for each published Prefab module, even header-only
+# modules. This empty archive is only a build-model target: Prefab exports headers, not
+# the archive (its module is marked headerOnly in ReactAndroid/build.gradle.kts).
+add_library(reactheaders STATIC ${REACT_COMMON_DIR}/callinvoker/React/CallInvoker.h)
+set_target_properties(reactheaders PROPERTIES LINKER_LANGUAGE CXX)
+
 include(CheckIPOSupported)
 check_ipo_supported(RESULT IPO_SUPPORT)
 if (IPO_SUPPORT)

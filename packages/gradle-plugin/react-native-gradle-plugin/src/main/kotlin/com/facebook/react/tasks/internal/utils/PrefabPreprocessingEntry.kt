@@ -20,6 +20,8 @@ import java.io.Serializable
 data class PrefabPreprocessingEntry(
     val libraryName: String,
     val pathToPrefixCouples: List<Pair<String, String>>,
+    // Patterns relative to the source directory, keyed by the destination header prefix.
+    val excludesByPrefix: Map<String, List<String>> = emptyMap(),
 ) : Serializable {
   constructor(
       libraryName: String,
