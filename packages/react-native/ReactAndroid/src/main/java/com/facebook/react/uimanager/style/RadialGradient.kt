@@ -244,7 +244,8 @@ internal class RadialGradient(
 
     val (radiusX, radiusY) = calculateRadius(centerX, centerY, width, height)
 
-    val fixedStops = ColorStopUtils.getFixedColorStops(colorStops, max(radiusX, radiusY))
+    // CSS radial-gradient length stops are measured along the horizontal gradient ray.
+    val fixedStops = ColorStopUtils.getFixedColorStops(colorStops, radiusX)
     // Unlike negative stops, stops past the ending shape stay visible outside it, so the radius
     // grows to fit them.
     val radiusScale = max(fixedStops.lastOrNull()?.position ?: 1f, 1f)

@@ -174,7 +174,8 @@ RadiusVector GetRadialGradientRadius(
   bool isCircle = (gradient.shape == RadialGradientShape::Circle);
   auto [radiusX, radiusY] =
       GetRadialGradientRadius(isCircle, gradient.size, centerPoint.x, centerPoint.y, size.width, size.height);
-  const auto gradientLineLength = std::max(radiusX, radiusY);
+  // The radial gradient line runs rightward from the center to the ending shape.
+  const auto gradientLineLength = radiusX;
   auto colorStops = [RCTGradientUtils getFixedColorStops:gradient.colorStops gradientLineLength:gradientLineLength];
   // Unlike negative stops, stops past the ending shape stay visible outside it, so the radius grows to fit them.
   const Float radiusScale = colorStops.empty() ? 1 : std::max<Float>(colorStops.back().position.value_or(1), 1);
