@@ -61,6 +61,7 @@ import com.facebook.react.uimanager.ReactClippingViewGroup
 import com.facebook.react.uimanager.ReactClippingViewGroupHelper.calculateClippingRect
 import com.facebook.react.uimanager.ReactOverflowViewWithInset
 import com.facebook.react.uimanager.ReactPointerEventsView
+import com.facebook.react.uimanager.isHoverEvent
 import com.facebook.react.uimanager.style.BorderRadiusProp
 import com.facebook.react.uimanager.style.BorderStyle
 import com.facebook.react.uimanager.style.LogicalEdge
@@ -317,9 +318,18 @@ public open class ReactViewGroup public constructor(context: Context?) :
     return super.onHoverEvent(event)
   }
 
+  override fun onInterceptHoverEvent(event: MotionEvent): Boolean {
+    // A box-only view receives hover itself without forwarding it to its children.
+    return pointerEvents == PointerEvents.BOX_ONLY || super.onInterceptHoverEvent(event)
+  }
+
   override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean {
-    // We do not dispatch the motion event if its children are not supposed to receive it
-    if (!canChildrenBeTouchTarget(pointerEvents)) {
+    // Hover may target a box-only view itself, but its children and other generic motion
+    // events remain blocked. A none view receives neither.
+    if (
+        !canChildrenBeTouchTarget(pointerEvents) &&
+            (!canBeTouchTarget(pointerEvents) || !ev.isHoverEvent())
+    ) {
       return false
     }
 

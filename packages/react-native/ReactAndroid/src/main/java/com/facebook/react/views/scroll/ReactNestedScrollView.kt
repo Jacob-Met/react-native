@@ -4,7 +4,7 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
- * @generated SignedSource<<5d7adbc00208fc9995b1c3e69c677a38>>
+ * @generated SignedSource<<9a8b8ec45395d025a84c804a5d2e7e5e>>
  */
 
 /**
@@ -49,6 +49,7 @@ import com.facebook.react.uimanager.ReactClippingViewGroupHelper
 import com.facebook.react.uimanager.ReactOverflowViewWithInset
 import com.facebook.react.uimanager.StateWrapper
 import com.facebook.react.uimanager.events.NativeGestureUtil
+import com.facebook.react.uimanager.isHoverEvent
 import com.facebook.react.uimanager.style.BorderRadiusProp
 import com.facebook.react.uimanager.style.BorderStyle
 import com.facebook.react.uimanager.style.LogicalEdge
@@ -630,9 +631,19 @@ constructor(context: Context, private val fpsListener: FpsListener? = null) :
     }
   }
 
+  override fun onInterceptHoverEvent(event: MotionEvent): Boolean {
+    return pointerEvents == PointerEvents.BOX_ONLY || super.onInterceptHoverEvent(event)
+  }
+
   override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean {
-    if (!scrollEnabled) return false
-    if (!PointerEvents.canChildrenBeTouchTarget(pointerEvents)) return false
+    // Hover remains available when scrolling is disabled or only this box is targetable.
+    if (!scrollEnabled && !ev.isHoverEvent()) return false
+    if (
+        !PointerEvents.canChildrenBeTouchTarget(pointerEvents) &&
+            (!PointerEvents.canBeTouchTarget(pointerEvents) || !ev.isHoverEvent())
+    ) {
+      return false
+    }
 
     if (ev.actionMasked == MotionEvent.ACTION_SCROLL) {
       val vScroll = ev.getAxisValue(MotionEvent.AXIS_VSCROLL)

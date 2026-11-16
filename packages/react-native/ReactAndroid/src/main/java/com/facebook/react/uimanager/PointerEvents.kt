@@ -7,6 +7,7 @@
 
 package com.facebook.react.uimanager
 
+import android.view.MotionEvent
 import com.facebook.common.logging.FLog
 import com.facebook.react.common.ReactConstants
 import java.util.Locale
@@ -58,3 +59,10 @@ public enum class PointerEvents {
     }
   }
 }
+
+// Hover is generic motion on Android, but it remains available when touch children
+// or scrolling are disabled. Keep the three hover actions together for native callers.
+internal fun MotionEvent.isHoverEvent(): Boolean =
+    actionMasked == MotionEvent.ACTION_HOVER_ENTER ||
+        actionMasked == MotionEvent.ACTION_HOVER_MOVE ||
+        actionMasked == MotionEvent.ACTION_HOVER_EXIT

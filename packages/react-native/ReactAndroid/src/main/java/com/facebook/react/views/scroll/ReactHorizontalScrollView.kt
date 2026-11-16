@@ -47,6 +47,7 @@ import com.facebook.react.uimanager.ReactClippingViewGroupHelper
 import com.facebook.react.uimanager.ReactOverflowViewWithInset
 import com.facebook.react.uimanager.StateWrapper
 import com.facebook.react.uimanager.events.NativeGestureUtil
+import com.facebook.react.uimanager.isHoverEvent
 import com.facebook.react.uimanager.style.BorderRadiusProp
 import com.facebook.react.uimanager.style.BorderStyle
 import com.facebook.react.uimanager.style.LogicalEdge
@@ -778,12 +779,19 @@ constructor(context: Context, private val fpsListener: FpsListener? = null) :
     }
   }
 
-  override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean {
-    // Ignore generic motion events (joystick, mouse wheel, trackpad) if scrolling is disabled
-    if (!scrollEnabled) return false
+  override fun onInterceptHoverEvent(event: MotionEvent): Boolean {
+    return pointerEvents == PointerEvents.BOX_ONLY || super.onInterceptHoverEvent(event)
+  }
 
-    // We do not dispatch the motion event if its children are not supposed to receive it
-    if (!PointerEvents.canChildrenBeTouchTarget(pointerEvents)) return false
+  override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean {
+    // Hover remains available when scrolling is disabled or only this box is targetable.
+    if (!scrollEnabled && !ev.isHoverEvent()) return false
+    if (
+        !PointerEvents.canChildrenBeTouchTarget(pointerEvents) &&
+            (!PointerEvents.canBeTouchTarget(pointerEvents) || !ev.isHoverEvent())
+    ) {
+      return false
+    }
 
     // Handle ACTION_SCROLL events (mouse wheel, trackpad, joystick)
     if (ev.actionMasked == MotionEvent.ACTION_SCROLL) {
