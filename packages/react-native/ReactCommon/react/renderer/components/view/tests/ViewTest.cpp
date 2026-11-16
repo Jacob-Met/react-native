@@ -172,6 +172,78 @@ TEST_F(YogaDirtyFlagTest, changingLayoutSubPropsMustDirtyYogaNode) {
       static_cast<RootShadowNode&>(*newRootShadowNode).layoutIfNeeded());
 }
 
+TEST(ViewTest, changingFixedWidthToFlexInvalidatesCachedFlexBasis) {
+  auto builder = simpleComponentBuilder();
+  auto root = std::shared_ptr<RootShadowNode>{};
+  auto row = std::shared_ptr<ViewShadowNode>{};
+  auto child = std::shared_ptr<ViewShadowNode>{};
+
+  // clang-format off
+  auto element =
+      Element<RootShadowNode>()
+        .reference(root)
+        .tag(1)
+        .children({
+          Element<ViewShadowNode>()
+            .reference(row)
+            .tag(2)
+            .props([] {
+              auto props = std::make_shared<ViewProps>();
+              props->yogaStyle.setFlexDirection(yoga::FlexDirection::Row);
+              props->yogaStyle.setDimension(
+                  yoga::Dimension::Width, yoga::StyleSizeLength::points(951));
+              props->yogaStyle.setDimension(
+                  yoga::Dimension::Height, yoga::StyleSizeLength::points(600));
+              return props;
+            })
+            .children({
+              Element<ViewShadowNode>()
+                .reference(child)
+                .tag(3)
+                .props([] {
+                  auto props = std::make_shared<ViewProps>();
+                  props->yogaStyle.setDimension(
+                      yoga::Dimension::Width, yoga::StyleSizeLength::points(475));
+                  return props;
+                })
+            })
+        });
+  // clang-format on
+
+  builder.build(element);
+  EXPECT_TRUE(root->layoutIfNeeded());
+  const auto& initialChild = static_cast<const LayoutableShadowNode&>(
+      *root->getChildren().at(0)->getChildren().at(0));
+  EXPECT_EQ(initialChild.getLayoutMetrics().frame.size.width, 475);
+
+  // Fabric clones a Yoga node with its cached basis before replacing props.
+  // A child switching from width: 475 to flex: 1 must use the new row width.
+  for (float width : {469.0f, 385.0f, 669.0f}) {
+    auto resizedRoot = root->cloneTree(
+        row->getFamily(), [width](const ShadowNode& oldShadowNode) {
+          auto props = std::make_shared<ViewProps>();
+          props->yogaStyle.setFlexDirection(yoga::FlexDirection::Row);
+          props->yogaStyle.setDimension(
+              yoga::Dimension::Width, yoga::StyleSizeLength::points(width));
+          props->yogaStyle.setDimension(
+              yoga::Dimension::Height, yoga::StyleSizeLength::points(600));
+          return oldShadowNode.clone(ShadowNodeFragment{.props = props});
+        });
+    auto flexRoot =
+        std::static_pointer_cast<RootShadowNode>(resizedRoot->cloneTree(
+            child->getFamily(), [](const ShadowNode& oldShadowNode) {
+              auto props = std::make_shared<ViewProps>();
+              props->yogaStyle.setFlex(yoga::FloatOptional(1));
+              return oldShadowNode.clone(ShadowNodeFragment{.props = props});
+            }));
+
+    EXPECT_TRUE(flexRoot->layoutIfNeeded());
+    const auto& flexChild = static_cast<const LayoutableShadowNode&>(
+        *flexRoot->getChildren().at(0)->getChildren().at(0));
+    EXPECT_EQ(flexChild.getLayoutMetrics().frame.size.width, width);
+  }
+}
+
 TEST_F(YogaDirtyFlagTest, removingAllChildrenMustDirtyYogaNode) {
   /*
    * Removing all children *must* dirty a Yoga node.

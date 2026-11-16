@@ -404,12 +404,17 @@ void YogaLayoutableShadowNode::updateYogaProps() {
   auto& props = static_cast<const YogaStylableProps&>(*props_);
   auto styleResult = applyAliasedProps(props.yogaStyle, props);
 
-  // Resetting `dirty` flag only if `yogaStyle` portion of `Props` was
-  // changed.
-  if (!YGNodeIsDirty(&yogaNode_) && (styleResult != yogaNode_.style())) {
+  const bool styleChanged = styleResult != yogaNode_.style();
+  // Dirty the node only when its Yoga style changed.
+  if (!YGNodeIsDirty(&yogaNode_) && styleChanged) {
     yogaNode_.setDirty(true);
   }
 
+  if (styleChanged) {
+    // setStyle()/setDirty() do not invalidate Yoga's cached flex basis.
+    // A previous fixed dimension must not survive a transition to flex.
+    yogaNode_.setLayoutComputedFlexBasis(yoga::FloatOptional());
+  }
   yogaNode_.setStyle(styleResult);
   // A style rebuilt from the props lacks what `configureYogaTree` applies to
   // it, such as the left and right swap in RTL, so the node needs configuring
